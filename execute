@@ -1,0 +1,54 @@
+
+module execute #(parameter xlen = 32)  // Default to 32-bit, can be configured for other bit-widths
+(
+    input  wire                   clk,                // Clock signal
+    input  wire                   reset_n,            // Active-low synchronous reset
+    input  wire [3:0]             operation,          // Operation code from decoder
+    input  wire [xlen-1:0]        imm,                // Immediate value from decoder
+    input  wire                   use_imm,            // Flag to use immediate value instead of operand_b
+    input  wire [xlen-1:0]        operand_a,          // First operand (rs1)
+    input  wire [xlen-1:0]        operand_b,          // Second operand (rs2)
+
+    output reg                    branch_taken,       // Branch result to fetch unit
+    output reg  [xlen-1:0]        result              // ALU result to memory and writeback
+);
+
+    // Internal signals
+    reg [xlen-1:0] alu_operand_b;  // To select between operand_b or imm
+
+    // ALU Logic
+    always @(posedge clk or negedge reset_n) begin
+        if (reset_n) begin
+            result <= {xlen{1'b0}};  // Reset result
+            branch_taken <= 1'b0;    // Reset branch_taken
+        end else begin
+            // Select between operand_b or immediate value
+            alu_operand_b = (use_imm) ? imm : operand_b;
+            
+            // ALU operation based on 'operation' input
+            case (operation)
+                4'b0000: result <= operand_a + alu_operand_b;   // ADD
+                4'b0001: result <= operand_a - alu_operand_b;   // SUB
+                4'b0010: result <= operand_a & alu_operand_b;   // AND
+                4'b0011: result <= operand_a | alu_operand_b;   // OR
+                4'b0100: result <= operand_a ^ alu_operand_b;   // XOR
+                4'b0101: result <= (operand_a < alu_operand_b) ? 1 : 0; // SLT (Set Less Than)
+                
+                // Branch operations: based on comparisons
+                4'b0110: branch_taken <= (operand_a == alu_operand_b);  // BEQ (Branch if Equal)
+                4'b0111: branch_taken <= (operand_a != alu_operand_b);  // BNE (Branch if Not Equal)
+                4'b1000: branch_taken <= ($signed(operand_a) < $signed(alu_operand_b));  // BLT (Branch if Less Than)
+                4'b1001: branch_taken <= ($signed(operand_a) > $signed(alu_operand_b));  // BGE (Branch if Greater Than)
+                4'b1010: branch_taken <= (operand_a < alu_operand_b);  // BLTU (Branch if Less Than Unsigned)
+                4'b1011: branch_taken <= (operand_a > alu_operand_b);  // BGEU (Branch if Greater Than  Unsigned)
+                
+                // shift operation
+                4'b1100: result <= operand_a << operand_b[4:0];  // SLL (Shift Left Logical)
+                4'b1101: result <= $signed(operand_a) >>> operand_b[4:0];  // SRA (Shift Right Arithmetic)
+                4'b1110: result <= operand_a >> operand_b[4:0];  // SRL (Shift Right Logical)
+
+                default: result <= {xlen{1'b0}};  // Default to zero for undefined operations
+            endcase
+        end
+    end
+endmodule
