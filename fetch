@@ -1,1 +1,30 @@
 
+module fetch #(parameter xlen=32)(
+  input wire clk, // Clock signal
+  input wire reset_n, // Active low, synchronous reset
+  input wire [xlen-1:0] next_instruction, // Received from instruction memory
+  input wire branch_taken, // Received from EX
+  output reg [xlen-1:0] current_instruction, // Sent to the decode unit
+  output reg [xlen-1:0] next_pc, // Sent to the Instruction Memory
+  output reg [xlen-1:0] current_pc // Sent to the decode unit
+    );
+    
+  always @(posedge clk or negedge reset_n) begin
+          if (reset_n) begin
+              current_instruction <= 32'b0;
+              next_pc <= 32'b0;
+              current_pc <= 32'b0;
+          end
+           else if(branch_taken) begin
+              current_instruction <= next_instruction;
+              //current_pc <= next_pc; // Update current PC based on next PC
+              // Logic for next_pc can be defined as needed
+              current_pc = current_pc + next_instruction[31:20];
+              end
+              else if(!branch_taken)
+              current_pc = current_pc +4;
+              else
+              current_pc = next_pc;
+          end
+      
+endmodule
