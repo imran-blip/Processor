@@ -1,0 +1,26 @@
+module register_file #(parameter xlen = 32)(
+    input wire clk,
+    input wire [$clog2(xlen)-1:0] src1_addr,          // decoder to Register file
+    input wire [$clog2(xlen)-1:0] src2_addr,          // decoder to Register file
+    input wire [$clog2(xlen)-1:0] dest_addr,
+    output wire wr_en,
+    output  wire [xlen-1:0] operand_a,      // from register file to execution    
+    output  wire [xlen-1:0] operand_b,
+    
+    input wire [xlen-1:0] write_data
+    
+    );
+    
+    reg [xlen-1:0] reg_file[xlen-1:0];
+    
+    assign operand_a = (src1_addr ==0) ? 32'b0: reg_file [src1_addr];
+    assign operand_b = (src2_addr ==0) ? 32'b0: reg_file [src2_addr];
+
+       always@(posedge clk) begin
+         if(wr_en && dest_addr !=0)
+         reg_file[dest_addr] = write_data;
+           else
+               reg_file[dest_addr]= 32'b0;
+          end 
+
+endmodule
