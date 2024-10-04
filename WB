@@ -1,0 +1,33 @@
+module WB #(
+    parameter xlen = 32   // Data width
+)(
+    input wire clk,                  // Clock signal
+    input wire reset_n,              // Active-low reset signal
+
+    // Inputs from memory or ALU
+    input wire [xlen-1:0] alu_result,    // Result from ALU
+    input wire [xlen-1:0] mem_data,      // Data loaded from memory
+    input wire mem_to_reg,               // Control signal: 1 -> use mem_data, 0 -> use alu_result
+
+    // Register file interface
+    input wire [$clog2(xlen)-1:0] dest_addr,  // Destination register address
+    input wire reg_write_en,              // Enable signal to write to register file
+    output reg [xlen-1:0] writeback_data, // Data to be written back to the register file
+    output reg [$clog2(xlen)-1:0] reg_addr  // Address of the register to write back to
+);
+
+    always @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            // Reset outputs
+            writeback_data <= 0;
+            reg_addr <= 0;
+        end else begin
+            if (reg_write_en) begin
+                // Choose between ALU result and memory data based on mem_to_reg signal
+                writeback_data <= mem_to_reg ? mem_data : alu_result;
+                reg_addr <= dest_addr;  // Destination register to write back to
+            end
+        end
+    end
+
+endmodule
