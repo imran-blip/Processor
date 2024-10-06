@@ -1,0 +1,105 @@
+module top #(parameter xlen = 32) (
+    input wire clk,
+    input wire reset_n,               
+
+    // Fetch Unit
+    input wire [xlen-1:0] next_instruction,  // From instruction memory
+    input wire branch_taken,                 // From Execute Unit
+
+    // Memory inputs
+    input wire we,                           
+    input wire [2:0] mode,                   
+    input wire [xlen-1:0] addr,              
+    input wire [xlen-1:0] writedata,         // Data to write to memory
+
+    // Writeback inputs
+    input wire mem_to_reg,                   // Control signal
+    input wire reg_write_en,                
+
+    // Outputs
+     output wire [xlen-1:0] current_instruction, // Instruction sent to Decode Unit
+     output wire [xlen-1:0] next_pc,          // Next program counter value
+     output wire [xlen-1:0] current_pc,       // Current program counter value
+      output wire [xlen-1:0] result,           //execution result
+      output wire [xlen-1:0] writeback_data,   // Data to be written back to the register file
+      output wire branch_taken_out,            
+      output wire [xlen-1:0] readdata          // Data read from memory
+);
+
+    // Internal wires
+    wire [3:0] operation;
+    wire [$clog2(xlen)-1:0] src1_addr, src2_addr, dest_addr;
+    wire [xlen-1:0] imm;
+    wire use_imm, is_load_store;
+    wire [xlen-1:0] operand_a, operand_b;
+    wire [xlen-1:0] alu_result;
+
+    fetch #(xlen) inst1 (
+        .clk(clk),
+        .reset_n(reset_n),
+        .next_instruction(next_instruction),
+        .branch_taken(branch_taken),
+        .current_instruction(current_instruction),
+        .next_pc(next_pc),
+        .current_pc(current_pc)
+    );
+
+    decode #(xlen) inst2 (
+        .clk(clk),
+        .reset_n(reset_n),
+        .current_instruction(current_instruction),
+        .current_pc(current_pc),
+        .operation(operation),
+        .src1_addr(src1_addr),
+        .src2_addr(src2_addr),
+        .dest_addr(dest_addr),
+        .imm(imm),
+        .use_imm(use_imm),
+        .is_load_store(is_load_store)
+    );
+
+       execute #(xlen) inst3 (
+        .clk(clk),
+        .reset_n(reset_n),
+        .operation(operation),
+        .imm(imm),
+        .use_imm(use_imm),
+        .operand_a(operand_a),
+        .operand_b(operand_b),
+        .branch_taken(branch_taken_out),
+        .result(alu_result)
+    );
+    
+     register_file #(xlen) inst4 (
+           .clk(clk),
+           .src1_addr(src1_addr),
+           .src2_addr(src2_addr),
+           .dest_addr(dest_addr),
+           .operand_a(operand_a),
+           .operand_b(operand_b),
+           .write_data(writeback_data),
+           .wr_en(reg_write_en)
+       );
+
+    memory #(xlen) inst5 (
+        .clk(clk),
+        .we(we),
+        .reset_n(reset_n),
+        .mode(mode),
+        .addr(addr),
+        .writedata(writedata),
+        .readdata(readdata)
+    );
+
+    WB #(xlen) inst6 (
+        .clk(clk),
+        .reset_n(reset_n),
+        .alu_result(alu_result),
+        .mem_data(readdata),
+        .mem_to_reg(mem_to_reg),
+        .dest_addr(dest_addr),
+        .reg_write_en(reg_write_en),
+        .writeback_data(writeback_data)
+    );
+
+endmodule
