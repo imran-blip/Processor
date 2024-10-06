@@ -1,0 +1,91 @@
+module tb();
+
+  parameter xlen = 32;
+
+  reg clk;
+  reg reset_n;
+
+  reg [xlen-1:0] next_instruction;      // Fetch Unit Inputs
+  reg branch_taken;
+
+  reg we;                  // Memory Inputs
+  reg [2:0] mode;
+  reg [xlen-1:0] addr;
+  reg [xlen-1:0] writedata;
+
+  reg mem_to_reg;            // Writeback Inputs
+  reg reg_write_en;
+
+  // Outputs from the top-level processor
+  wire [xlen-1:0] current_instruction;
+  wire [xlen-1:0] next_pc;
+  wire [xlen-1:0] current_pc;
+  wire [xlen-1:0] writeback_data;
+  wire [xlen-1:0] result;
+  wire branch_taken_out;
+  wire [xlen-1:0] readdata;
+  
+  top #(xlen) inst8 (
+    .clk(clk),
+    .reset_n(reset_n),
+    .next_instruction(next_instruction),
+    .branch_taken(branch_taken),
+    .we(we),
+    .mode(mode),
+    .addr(addr),
+    .writedata(writedata),
+    .mem_to_reg(mem_to_reg),
+    .reg_write_en(reg_write_en),
+    .current_instruction(current_instruction),
+    .next_pc(next_pc),
+    .current_pc(current_pc),
+    .writeback_data(writeback_data),
+    .result(result),
+    .branch_taken_out(branch_taken_out),
+    .readdata(readdata)
+  );
+
+  // Clock generation: toggle every 10 time units
+  always #5 clk = ~clk;
+
+  // Testbench sequence
+  initial begin
+    // Initialize signals
+    clk = 1;
+    reset_n = 1;
+    next_instruction = 0;
+    branch_taken = 0;
+    we = 0;
+    mode = 3'b000;  // Example memory mode
+    addr = 0;
+    writedata = 0;
+    mem_to_reg = 0;
+    reg_write_en = 0;
+
+    #20;
+    reset_n = 0;  
+
+    
+    #20;
+   // next_instruction = 32'h00200093;  // ADDI x1, x0, 2
+       next_instruction = 32'h12300093;  // ADDI x1, x0, 294
+
+    branch_taken = 0;
+    we = 0;
+
+    #20;
+    branch_taken = 1;
+
+ 
+
+    #100;
+    $finish;  // End the simulation after a set time
+  end
+
+  // Monitor key signals for debugging
+  initial begin
+    $monitor("Time = %0t | Instruction = %h | PC = %h | Result = %h | Branch = %b | Writeback Data = %h",
+             $time, current_instruction, current_pc, result, branch_taken_out, writeback_data);
+  end
+
+endmodule
